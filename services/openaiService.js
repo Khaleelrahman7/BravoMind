@@ -1,7 +1,11 @@
 // NVIDIA API configuration
 const NVIDIA_API_KEY = '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';
-// Use proxy URL to avoid CORS issues
-const NVIDIA_API_URL = '/api/nvidia/chat/completions';
+// Use different URLs for development vs production
+const isDevelopment = import.meta.env.DEV;
+const NVIDIA_API_URL = isDevelopment
+  ? '/api/nvidia/chat/completions'
+  : '/.netlify/functions/nvidia-chat';
+console.log('Environment:', isDevelopment ? 'Development' : 'Production');
 console.log('Using NVIDIA API URL:', NVIDIA_API_URL);
 console.log('Using NVIDIA API KEY:', NVIDIA_API_KEY.substring(0, 10) + '...');
 
@@ -143,14 +147,13 @@ export const generateAIResponse = async (userMessage, conversationHistory = []) 
       }
     ];
     
-    // Make API call to NVIDIA through proxy
+    // Make API call to NVIDIA (through proxy in dev, through Netlify function in production)
     console.log("Attempting to connect to NVIDIA API...");
-    const response = await fetch(NVIDIA_API_URL, {
+    const fetchOptions = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${NVIDIA_API_KEY}`
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
         model: "nvidia/llama-3.1-nemotron-70b-instruct",
@@ -160,7 +163,14 @@ export const generateAIResponse = async (userMessage, conversationHistory = []) 
         top_p: 0.9,
         stream: false
       })
-    });
+    };
+
+    // Add Authorization header only for development (proxy)
+    if (isDevelopment) {
+      fetchOptions.headers['Authorization'] = `Bearer ${NVIDIA_API_KEY}`;
+    }
+
+    const response = await fetch(NVIDIA_API_URL, fetchOptions);
 
     if (!response.ok) {
       console.error(`HTTP error: ${response.status} - ${response.statusText}`);
